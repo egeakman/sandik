@@ -53,8 +53,16 @@ class Neighborhood:
         self.district_id = district_id
         self.schools = []
         schools = send_request(AreaType.SCHOOL, city_id=self.city_id, district_id=self.district_id, neighborhood_id=self.id)
-        for school in schools:
-            self.schools.append(School(id=school["id"], name=school["name"], city_id=self.city_id, district_id=self.district_id, neighborhood_id=self.id))
+        self.schools.extend(
+            School(
+                id=school["id"],
+                name=school["name"],
+                city_id=self.city_id,
+                district_id=self.district_id,
+                neighborhood_id=self.id,
+            )
+            for school in schools
+        )
 
     def to_dict(self):
         return {
@@ -82,8 +90,15 @@ class District:
         self.city_id = city_id
         self.neighborhoods = []
         neighborhoods = send_request(AreaType.NEIGHBORHOOD, city_id=self.city_id, district_id=self.id)
-        for neighborhood in neighborhoods:
-            self.neighborhoods.append(Neighborhood(id=neighborhood["id"], name=neighborhood["name"], city_id=self.city_id, district_id=self.id))
+        self.neighborhoods.extend(
+            Neighborhood(
+                id=neighborhood["id"],
+                name=neighborhood["name"],
+                city_id=self.city_id,
+                district_id=self.id,
+            )
+            for neighborhood in neighborhoods
+        )
 
     def to_dict(self):
         return {
@@ -110,8 +125,10 @@ class City:
         self.plate = plate
         self.districts = []
         districts = send_request(AreaType.DISTRICT, city_id=self.id)
-        for district in districts:
-            self.districts.append(District(id=district["id"], name=district["name"], city_id=self.id))
+        self.districts.extend(
+            District(id=district["id"], name=district["name"], city_id=self.id)
+            for district in districts
+        )
 
     def to_dict(self):
         return {
@@ -125,12 +142,12 @@ class City:
         return f"{self.id} - {self.name} - {self.plate} - {self.districts.count()}"
 
 def send_request(type, city_id=0, district_id=0, neighborhood_id=0, school_id=0):
-    CITIES_URL = f"https://api-sonuc.oyveotesi.org/api/v1/cities"
     DISTRICTS_URL = f"https://api-sonuc.oyveotesi.org/api/v1/cities/{city_id}/districts"
     NEIGHBORHOODS_URL = f"https://api-sonuc.oyveotesi.org/api/v1/cities/{city_id}/districts/{district_id}/neighborhoods"
     SCHOOLS_URL = f"https://api-sonuc.oyveotesi.org/api/v1/cities/{city_id}/districts/{district_id}/neighborhoods/{neighborhood_id}/schools"
 
     if type == AreaType.CITY:
+        CITIES_URL = "https://api-sonuc.oyveotesi.org/api/v1/cities"
         url = CITIES_URL
     elif type == AreaType.DISTRICT:
         url = DISTRICTS_URL
@@ -172,22 +189,29 @@ def get_cities():
     with open("cities.json", "r", encoding="utf-8") as f:
         cities_json = json.load(f)
 
-    cities = [City(id=city["id"], name=city["name"], plate=city["plate"]) for city in cities_json]
-
-    return cities
+    return [
+        City(id=city["id"], name=city["name"], plate=city["plate"])
+        for city in cities_json
+    ]
 
 if __name__ == "__main__":
     with open("cities.json", "r", encoding="utf-8") as f:
         cities_json = json.load(f)
-    
+
     city_plate = int(input("Enter city plate: "))
 
-    city = None
-    for city_json in cities_json:
-        if city_json["plate"] == city_plate:
-            city = City(id=city_json["id"], name=city_json["name"], plate=city_json["plate"])
-            break
-
+    city = next(
+        (
+            City(
+                id=city_json["id"],
+                name=city_json["name"],
+                plate=city_json["plate"],
+            )
+            for city_json in cities_json
+            if city_json["plate"] == city_plate
+        ),
+        None,
+    )
     if city is None:
         print("Error: city not found")
         exit(1)
